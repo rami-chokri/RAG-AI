@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Chat - Tunisia Archaeology</title>
+<style>
+/* ---------- Reset & Body ---------- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', sans-serif; background-color: #0c0d14; color: #e5e5e5; }
+
+/* ---------- Chat Container ---------- */
+.chat-container { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; height: 100vh; border-left: 1px solid #222431; border-right: 1px solid #222431; }
+
+/* ---------- Header ---------- */
+.chat-header { background: linear-gradient(90deg,#2a2d43,#1f2233); color: #fff; padding: 18px; text-align: center; font-size: 24px; font-weight: bold; border-bottom: 1px solid #222431; text-shadow: 0 1px 2px #000; }
+
+/* ---------- Chat Body ---------- */
+.chat-body { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; background-color: #14151f; scroll-behavior: smooth; }
+
+/* ---------- Messages ---------- */
+.message { padding: 14px 20px; border-radius: 20px; max-width: 70%; word-wrap: break-word; line-height: 1.5; opacity: 0; transform: translateY(20px); animation: fadeIn 0.3s forwards; box-shadow: 0 2px 6px rgba(0,0,0,0.3); }
+.user { background-color: #2b85f5; color: #fff; align-self: flex-end; border-bottom-right-radius: 5px; }
+.bot { background-color: #1e1f29; color: #e5e5e5; align-self: flex-start; border-bottom-left-radius: 5px; }
+.bot .sources { font-size: 12px; color: #a0a0a0; margin-top: 6px; }
+
+/* ---------- Typing animation ---------- */
+.typing { display: flex; gap: 4px; }
+.dot { width: 8px; height: 8px; background-color: #2b85f5; border-radius: 50%; animation: bounce 1.2s infinite; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+}
+
+@keyframes fadeIn {
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Input Area ---------- */
+.chat-input { display: flex; padding: 15px; background-color: #1f2233; border-top: 1px solid #222431; }
+.chat-input input { flex: 1; padding: 14px 18px; border-radius: 12px; border: none; outline: none; background-color: #14151f; color: #e5e5e5; font-size: 16px; transition: 0.2s; }
+.chat-input input:focus { box-shadow: 0 0 8px #2b85f5; }
+.chat-input input::placeholder { color: #777; }
+.chat-input button { margin-left: 12px; padding: 14px 24px; border-radius: 12px; border: none; background-color: #2b85f5; color: #fff; font-size: 16px; cursor: pointer; transition: 0.2s; }
+.chat-input button:hover { background-color: #1e6ce1; transform: scale(1.05); }
+
+/* ---------- Scrollbar ---------- */
+.chat-body::-webkit-scrollbar { width: 8px; }
+.chat-body::-webkit-scrollbar-track { background: #14151f; }
+.chat-body::-webkit-scrollbar-thumb { background: #2a2d3a; border-radius: 4px; }
+
+</style>
+</head>
+<body>
+<div class="chat-container">
+    <div class="chat-header">RAG Tunisia Archaeology</div>
+    <div class="chat-body" id="chat-body"></div>
+    <div class="chat-input">
+        <input type="text" id="question" placeholder="Posez votre question ici..." autofocus>
+        <button onclick="sendMessage()">Envoyer</button>
+    </div>
+</div>
+
+<script>
+const chatBody = document.getElementById("chat-body");
+const questionInput = document.getElementById("question");
+
+questionInput.addEventListener("keypress", function(e) {
+    if (e.key === "Enter") sendMessage();
+});
+
+async function sendMessage() {
+    const question = questionInput.value.trim();
+    if (!question) return;
+
+    addMessage(question, "user");
+    questionInput.value = "";
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    const typingMsg = addTypingMessage();
+
+    try {
+        const response = await fetch("/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question })
+        });
+        const data = await response.json();
+        updateTypingMessage(typingMsg, data.answer, data.sources);
+    } catch (error) {
+        updateTypingMessage(typingMsg, "Erreur lors de la récupération de la réponse.", []);
+        console.error(error);
+    }
+
+    chatBody.scrollTop = chatBody.scrollHeight;
+}
+
+function addMessage(text, sender) {
+    const msg = document.createElement("div");
+    msg.classList.add("message", sender);
+    msg.innerText = text;
+    chatBody.appendChild(msg);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    return msg;
+}
+
+function addTypingMessage() {
+    const msg = document.createElement("div");
+    msg.classList.add("message", "bot");
+    const dots = document.createElement("div");
+    dots.classList.add("typing");
+    for(let i=0;i<3;i++){
+        const dot = document.createElement("div");
+        dot.classList.add("dot");
+        dots.appendChild(dot);
+    }
+    msg.appendChild(dots);
+    chatBody.appendChild(msg);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    return msg;
+}
+
+function updateTypingMessage(msgElem, answer, sources) {
+    msgElem.innerHTML = answer + (sources.length ? "<div class='sources'>" + sources.join("<br>") + "</div>" : "");
+    chatBody.scrollTop = chatBody.scrollHeight;
+}
+</script>
+</body>
+</html>
